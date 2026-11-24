@@ -10,6 +10,8 @@ import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 
+from hero import render_hero_svg
+
 
 def load_config() -> dict:
     """Carga la configuración del proyecto."""
@@ -33,7 +35,7 @@ def get_github_token() -> str:
     return token
 
 
-def github_graphql(query: str, token: str = None) -> dict:
+def github_graphql(query: str, token: str = None, variables: dict = None) -> dict:
     """Ejecuta una query GraphQL contra la API de GitHub."""
     config = load_config()
     url = config["github"]["graphql_url"]
@@ -44,11 +46,14 @@ def github_graphql(query: str, token: str = None) -> dict:
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
-    data = json.dumps({"query": query}).encode()
+    data = json.dumps({"query": query, "variables": variables or {}}).encode()
     req = urllib.request.Request(url, data=data, headers=headers)
     try:
         with urllib.request.urlopen(req) as resp:
-            return json.loads(resp.read())
+            result = json.loads(resp.read())
+            if result.get("errors"):
+                print(f"Error GraphQL: {result['errors']}")
+            return result
     except urllib.error.HTTPError as e:
         print(f"Error GraphQL {e.code}: {e.read().decode()}")
         return {}
@@ -91,7 +96,7 @@ def fetch_github_stats(username: str, token: str = None) -> dict:
       }
     }
     """
-    data = github_graphql(query, token)
+    data = github_graphql(query, token, {"login": username})
     if not data or "data" not in data:
         return {}
     user = data["data"].get("user", {})
@@ -139,7 +144,7 @@ def fetch_languages(username: str, token: str = None) -> dict:
       }
     }
     """
-    data = github_graphql(query, token)
+    data = github_graphql(query, token, {"login": username})
     if not data or "data" not in data:
         return {}
 
@@ -165,206 +170,6 @@ def fetch_languages(username: str, token: str = None) -> dict:
             "color": color,
         })
     return langs
-
-
-def render_svg(profile: dict, stats: dict, languages: list) -> str:
-    """Renderiza el SVG principal cyberpunk con animaciones."""
-    config = load_config()
-    c = config["theme"]["colors"]
-    anim = config["animations"]
-
-    # Datos
-    username = profile["username"]
-    name = profile["name"]
-    role = profile["role"]
-    focus = profile["focus"]
-    location = profile["location"]
-    bio = profile["bio"]
-
-    total_commits = stats.get("total_commits", 0)
-    total_repos = stats.get("total_repos", 0)
-    total_stars = stats.get("total_stars", 0)
-    followers = stats.get("followers", 0)
-
-    # Lenguajes para barras
-    lang_bars = ""
-    max_langs = min(len(languages), 8)
-    for i, lang in enumerate(languages[:max_langs]):
-        y = 320 + i * 28
-        width = lang["percent"] * 3
-        color = lang.get("color", c["primary"])
-        lang_bars += f'''
-    <text x="40" y="{y}" fill="{c["text_dim"]}" font-size="11" font-family="monospace">{lang["name"]}</text>
-    <rect x="160" y="{y-10}" width="300" height="12" rx="6" fill="{c["border"]}">
-      <animate attributeName="width" from="0" to="300" dur="{anim["bar_duration"]}s" fill="freeze" />
-    </rect>
-    <rect x="160" y="{y-10}" width="0" height="12" rx="6" fill="{color}">
-      <animate attributeName="width" from="0" to="{width}" dur="{anim["bar_duration"]}s" begin="{i*0.1}s" fill="freeze" />
-    </rect>
-    <text x="470" y="{y}" fill="{color}" font-size="10" font-family="monospace" opacity="0">
-      {lang["percent"]}%
-      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="{anim["bar_duration"]+i*0.1}s" fill="freeze" />
-    </text>'''
-
-    # Contribuciones heatmap
-    contrib_rects = []
-    if stats.get("contribution_days"):
-        day_index = 0
-        for week_idx, week in enumerate(stats["contribution_days"]):
-            pass  # Simplificado por ahora
-
-    # Soft skills tags
-    soft_skills = profile.get("soft_skills", [])
-    skill_tags = ""
-    for i, skill in enumerate(soft_skills):
-        x = 40 + (i % 3) * 160
-        y = 530 + (i // 3) * 30
-        skill_tags += f'''
-    <rect x="{x}" y="{y-14}" width="150" height="22" rx="11" fill="none" stroke="{c["tertiary"]}" stroke-width="1" opacity="0.7"/>
-    <text x="{x+75}" y="{y}" fill="{c["tertiary"]}" font-size="10" font-family="monospace" text-anchor="middle" opacity="0">
-      {skill}
-      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="{1+i*0.15}s" fill="freeze"/>
-    </text>'''
-
-    # Stack badges
-    stack_items = []
-    for category, items in profile.get("stack", {}).items():
-        for item in items:
-            stack_items.append(item)
-
-    stack_badges = ""
-    cols = 4
-    for i, item in enumerate(stack_items[:16]):
-        x = 40 + (i % cols) * 135
-        y = 610 + (i // cols) * 28
-        stack_badges += f'''
-    <rect x="{x}" y="{y-12}" width="125" height="20" rx="10" fill="none" stroke="{c["primary"]}" stroke-width="0.5" opacity="0.5"/>
-    <text x="{x+62}" y="{y+2}" fill="{c["text"]}" font-size="9" font-family="monospace" text-anchor="middle" opacity="0">
-      {item}
-      <animate attributeName="opacity" from="0" to="0.9" dur="0.4" begin="{1.5+i*0.08}s" fill="freeze"/>
-    </text>'''
-
-    # Stats numbers
-    stats_html = f'''
-    <text x="40" y="160" fill="{c["text_dim"]}" font-size="10" font-family="monospace">COMMITS</text>
-    <text x="40" y="185" fill="{c["primary"]}" font-size="28" font-family="monospace" font-weight="bold">{total_commits:,}</text>
-    <text x="200" y="160" fill="{c["text_dim"]}" font-size="10" font-family="monospace">REPOS</text>
-    <text x="200" y="185" fill="{c["secondary"]}" font-size="28" font-family="monospace" font-weight="bold">{total_repos}</text>
-    <text x="360" y="160" fill="{c["text_dim"]}" font-size="10" font-family="monospace">STARS</text>
-    <text x="360" y="185" fill="{c["tertiary"]}" font-size="28" font-family="monospace" font-weight="bold">{total_stars}</text>
-    <text x="520" y="160" fill="{c["text_dim"]}" font-size="10" font-family="monospace">FOLLOWERS</text>
-    <text x="520" y="185" fill="{c["accent"]}" font-size="28" font-family="monospace" font-weight="bold">{followers}</text>'''
-
-    # Typing animation para el título
-    title_text = f"{username}"
-    typing_chars = ""
-    for i, ch in enumerate(title_text):
-        typing_chars += f'''
-    <text x="{40+i*14}" y="80" fill="{c["primary"]}" font-size="22" font-family="monospace" font-weight="bold" opacity="0">
-      {ch}
-      <animate attributeName="opacity" from="0" to="1" dur="0.05" begin="{i*0.08}s" fill="freeze"/>
-    </text>'''
-
-    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="700" height="720" viewBox="0 0 700 720" font-family="JetBrains Mono, Fira Code, monospace">
-  <defs>
-    <!-- Glow filter -->
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-    <!-- Scanline pattern -->
-    <pattern id="scanlines" patternUnits="userSpaceOnUse" width="4" height="4">
-      <rect width="4" height="1" fill="white" opacity="0.02"/>
-    </pattern>
-    <!-- Gradient for border -->
-    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="{c["primary"]}"/>
-      <stop offset="50%" stop-color="{c["secondary"]}"/>
-      <stop offset="100%" stop-color="{c["tertiary"]}"/>
-    </linearGradient>
-  </defs>
-
-  <!-- Background -->
-  <rect width="700" height="720" fill="{c["background"]}" rx="12"/>
-
-  <!-- CRT Scanlines overlay -->
-  <rect width="700" height="720" fill="url(#scanlines)">
-    <animate attributeName="y" from="0" to="4" dur="{anim["scanline_duration"]}s" repeatCount="indefinite"/>
-  </rect>
-
-  <!-- Animated border -->
-  <rect x="1" y="1" width="698" height="718" rx="11" fill="none" stroke="url(#borderGrad)" stroke-width="2" filter="url(#glow)">
-    <animate attributeName="stroke-opacity" values="1;0.5;1" dur="{anim["glow_pulse_duration"]}s" repeatCount="indefinite"/>
-  </rect>
-
-  <!-- Header bar (terminal style) -->
-  <rect x="20" y="20" width="660" height="36" rx="8" fill="{c["surface"]}"/>
-  <circle cx="40" cy="38" r="5" fill="#ff5f56"/>
-  <circle cx="58" cy="38" r="5" fill="#ffbd2e"/>
-  <circle cx="76" cy="38" r="5" fill="#27c93f"/>
-  <text x="350" y="42" fill="{c["text_dim"]}" font-size="11" font-family="monospace" text-anchor="middle">~/.config/{username}</text>
-
-  <!-- Username with typing animation -->
-  {typing_chars}
-
-  <!-- Cursor blink -->
-  <rect x="{40+len(title_text)*14+4}" y="62" width="10" height="20" fill="{c["primary"]}">
-    <animate attributeName="opacity" values="1;0;1" dur="{anim["cursor_blink"]}s" repeatCount="indefinite"/>
-  </rect>
-
-  <!-- Info section -->
-  <text x="40" y="120" fill="{c["text"]}" font-size="13" font-family="monospace" opacity="0">
-    {role} · {focus}
-    <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="0.5s" fill="freeze"/>
-  </text>
-
-  <text x="40" y="140" fill="{c["text_dim"]}" font-size="11" font-family="monospace" opacity="0">
-    📍 {location}
-    <animate attributeName="opacity" from="0" to="1" dur="0.5" begin="0.7s" fill="freeze"/>
-  </text>
-
-  <!-- Stats row -->
-  <g opacity="0">
-    {stats_html}
-    <animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="0.3s" fill="freeze"/>
-  </g>
-
-  <!-- Languages section -->
-  <text x="40" y="300" fill="{c["text_dim"]}" font-size="10" font-family="monospace" opacity="0">
-    LANGUAGES &amp; TOOLS
-    <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="0.8s" fill="freeze"/>
-  </text>
-  {lang_bars}
-
-  <!-- Soft skills -->
-  <text x="40" y="510" fill="{c["text_dim"]}" font-size="10" font-family="monospace" opacity="0">
-    SOFT SKILLS
-    <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="1.2s" fill="freeze"/>
-  </text>
-  {skill_tags}
-
-  <!-- Full stack badges -->
-  <text x="40" y="590" fill="{c["text_dim"]}" font-size="10" font-family="monospace" opacity="0">
-    FULL STACK
-    <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="1.4s" fill="freeze"/>
-  </text>
-  {stack_badges}
-
-  <!-- Footer -->
-  <text x="40" y="700" fill="{c["text_dim"]}" font-size="9" font-family="monospace" opacity="0">
-    Generated by CoreCodev Auto-Builder · {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
-    <animate attributeName="opacity" from="0" to="0.6" dur="0.5s" begin="2.5s" fill="freeze"/>
-  </text>
-
-  <!-- Accessibility: respect reduced motion -->
-  <animateMotion>
-    <mpath href="#none"/>
-  </animateMotion>
-</svg>'''
-    return svg
 
 
 def render_languages_svg(languages: list, profile: dict) -> str:
@@ -531,7 +336,7 @@ def main():
     print(f"\n🎨 Rendering SVGs...")
 
     # Render main profile SVG
-    main_svg = render_svg(profile, stats, languages)
+    main_svg = render_hero_svg(profile, stats, languages, config["theme"]["colors"])
     output_dir = Path(config["paths"]["output"])
     output_dir.mkdir(exist_ok=True)
 

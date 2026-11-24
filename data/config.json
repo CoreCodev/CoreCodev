@@ -32,7 +32,7 @@
     "reduced_motion_fallback": true
   },
   "github": {
-    "username": "CoreCodev618",
+    "username": "CoreCodev",
     "token_secret": "GH_PAT",
     "api_url": "https://api.github.com",
     "graphql_url": "https://api.github.com/graphql"

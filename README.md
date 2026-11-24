@@ -3,13 +3,13 @@
 # ⚡ Sebastian Rodrigo Rabanal Francia
 
 <!-- Profile Card SVG -->
-<img src="assets/profile_card.svg" alt="CoreCodev Profile Card" width="700" />
+<img src="assets/profile_card.svg" alt="CoreCodev Profile Card" width="100%" />
 
 <!-- Languages Card -->
-<img src="assets/languages_card.svg" alt="Languages & Tools" width="700" />
+<img src="assets/languages_card.svg" alt="Languages & Tools" width="100%" />
 
 <!-- Activity Card -->
-<img src="assets/activity_card.svg" alt="Contribution Activity" width="700" />
+<img src="assets/activity_card.svg" alt="Contribution Activity" width="100%" />
 
 ---
 
@@ -46,7 +46,7 @@
 
 ## 📫 Connect
 
-[![GitHub](https://img.shields.io/badge/GitHub-CoreCodev618-00f0ff?style=flat-square&logo=github)](https://github.com/CoreCodev618)
+[![GitHub](https://img.shields.io/badge/GitHub-CoreCodev-00f0ff?style=flat-square&logo=github)](https://github.com/CoreCodev)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Sebastian%20Rabanal-00f0ff?style=flat-square&logo=linkedin)](https://linkedin.com/in/sebastianrabanalfrancia)
 [![Email](https://img.shields.io/badge/Email-sebastianrabanal34%40gmail.com-ff00aa?style=flat-square&logo=gmail)](mailto:sebastianrabanal34@gmail.com)
 [![Portfolio](https://img.shields.io/badge/Portfolio-corecodev618.github.io-00ff88?style=flat-square)](https://corecodev618.github.io)
